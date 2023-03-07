@@ -30,13 +30,13 @@ const char *Buffer::Peek() const
 void Buffer::Retrieve(size_t len)
 {
     std::cout<<len<<'\t'<<ReadableBytes()<<std::endl;
-    // assert(len <= ReadableBytes());
+    assert(len <= ReadableBytes());
     readPos_ += len;
 }
 
 void Buffer::RetrieveUntil(const char *end)
 {
-    assert(Peek() <= end);
+     assert(Peek() <= end);
     Retrieve(end - Peek());
 }
 
@@ -105,7 +105,7 @@ void Buffer::EnsureWriteable(size_t len)
 
 ssize_t Buffer::SSLReadFd(SSL *ssl,int * saveErrno){
     // char buff[65535];
-    struct iovec iov[2];
+    // struct iovec iov[2];
     const size_t writable = WritableBytes();
     /* 分散读， 保证数据全部读完 */
     // iov[1].iov_base = BeginPtr_() + writePos_;
@@ -123,11 +123,12 @@ ssize_t Buffer::SSLReadFd(SSL *ssl,int * saveErrno){
     {
         writePos_ += len;
     }
-    // else
-    // {
-    //     writePos_ = buffer_.size();
-    //     Append(buff, len - writable);
-    // }
+    else
+    {
+        writePos_ = buffer_.size();
+        std::cout<<"write is full";
+        // Append(buff, len - writable);
+    }
     
     return len;
 }

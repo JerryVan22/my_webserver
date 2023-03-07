@@ -43,7 +43,7 @@ bool HttpRequest::parse(Buffer& buff) {
         // char pe=buff.Peek();
 
         std::string line(buff.Peek(), lineEnd);
-        // std::cout<<line<<std::endl;
+         std::cout<<line<<std::endl;
         switch(state_)
         {
         case REQUEST_LINE:
@@ -86,7 +86,7 @@ void HttpRequest::ParsePath_() {
 }
 
 bool HttpRequest::ParseRequestLine_(const string& line) {
-    // std::cout<<line<<"empty?";
+    std::cout<<line<<"\tempty?";
     regex patten("^([^ ]*) ([^ ]*) HTTP/([^ ]*)$");
     smatch subMatch;
     if(regex_match(line, subMatch, patten)) {   
@@ -115,7 +115,7 @@ void HttpRequest::ParseBody_(const string& line) {
     body_ = line;
     ParsePost_();
     state_ = FINISH;
-    LOG_DEBUG("Body:%s, len:%d", line.c_str(), line.size());
+    LOG_INFO("Body:%s, len:%d", line.c_str(), line.size());
 }
 
 int HttpRequest::ConverHex(char ch) {
@@ -168,7 +168,7 @@ void HttpRequest::ParseFromUrlencoded_() {
             value = body_.substr(j, i - j);
             j = i + 1;
             post_[key] = value;
-            LOG_DEBUG("%s = %s", key.c_str(), value.c_str());
+            LOG_INFO("%s = %s", key.c_str(), value.c_str());
             break;
         default:
             break;
