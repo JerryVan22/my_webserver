@@ -30,10 +30,10 @@ bool HttpRequest::IsKeepAlive() const {
 bool HttpRequest::parse(Buffer& buff) {
     const char CRLF[] = "\r\n";
     // cout<<"buff read";
-     for(int i=buff.readPos_;i<buff.writePos_;i++){
-        std::cout<<buff.buffer_[i];
-    }
-    std::cout<<std::endl;
+    //  for(int i=buff.readPos_;i<buff.writePos_;i++){
+    //     std::cout<<buff.buffer_[i];
+    // }
+    // std::cout<<std::endl;
     if(buff.ReadableBytes() <= 0) {
         return false;
     }
@@ -43,6 +43,7 @@ bool HttpRequest::parse(Buffer& buff) {
         // char pe=buff.Peek();
 
         std::string line(buff.Peek(), lineEnd);
+        // std::cout<<line<<std::endl;
         switch(state_)
         {
         case REQUEST_LINE:
@@ -66,7 +67,7 @@ bool HttpRequest::parse(Buffer& buff) {
         if(lineEnd == buff.BeginWrite()) { break; }
         buff.RetrieveUntil(lineEnd + 2);
     }
-    LOG_DEBUG("[%s], [%s], [%s]", method_.c_str(), path_.c_str(), version_.c_str());
+    LOG_INFO("[%s], [%s], [%s]", method_.c_str(), path_.c_str(), version_.c_str());
     return true;
 }
 

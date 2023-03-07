@@ -31,16 +31,16 @@ public:
 
     ~HttpConn();
 
-    void init(int sockFd, const sockaddr_in& addr,SSL *ssl);
+    void init(int sockFd, const sockaddr_in& addr);
 
     ssize_t read(int* saveErrno);
 
     ssize_t write(int* saveErrno);
 
 
-    ssize_t ssl_write(int * saveErrno);
+    ssize_t ssl_write(SSL *hash_ssl,int * saveErrno);
     ssize_t ssl_read(SSL * hash_ssl,int * saveErrnor);
-    void Close();
+    void Close(SSL *ssl);
 
     int GetFd() const;
 
@@ -81,8 +81,7 @@ private:
     HttpRequest request_;
     HttpResponse response_;
 
-public:
-    SSL * ssl;
+
 
 };
 

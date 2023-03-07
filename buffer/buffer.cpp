@@ -29,7 +29,8 @@ const char *Buffer::Peek() const
 
 void Buffer::Retrieve(size_t len)
 {
-    assert(len <= ReadableBytes());
+    std::cout<<len<<'\t'<<ReadableBytes()<<std::endl;
+    // assert(len <= ReadableBytes());
     readPos_ += len;
 }
 

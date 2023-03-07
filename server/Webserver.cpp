@@ -1,11 +1,11 @@
 #include "webserver.h"
 
  WebServer::WebServer(
-        int _port, int _trigMode, int _timeoutMS, bool _OptLinger, 
+        int _port, int _timeoutMS, bool _OptLinger, 
         int _sqlPort, const char* _sqlUser, const  char* _sqlPwd, 
         const char* _dbName, int _connPoolNum, int _threadNum,
         bool _openLog, int _logLevel, int _logQueSize,SSL_ctx * _ctx):  port(_port), openLinger(_OptLinger), timeoutMS(_timeoutMS), isClose(false),
-           epoller(new Epoller()){
+           threadpool(new ThreadPool(_threadNum))  ,epoller(new Epoller()){
 
     ctx=_ctx;
     
@@ -18,8 +18,9 @@
 
     // SqlConnPool::Instance()->Init("localhost", _sqlPort, _sqlUser, _sqlPwd, _dbName, _connPoolNum);
 
-    InitEventMode_(_trigMode);
-
+    
+     listenEvent |= EPOLLET;
+    connEvent|= EPOLLET;
     if(!InitSocket_()) { isClose = true;}
 
     if(_openLog) {
@@ -48,30 +49,6 @@ WebServer::~WebServer() {
 }
 
 
-void WebServer::InitEventMode_(int trigMode) {
-    listenEvent = EPOLLRDHUP;
-    connEvent = EPOLLONESHOT | EPOLLRDHUP;
-    switch (trigMode)
-    {
-    case 0:
-        break;
-    case 1:
-        connEvent |= EPOLLET;
-        break;
-    case 2:
-        listenEvent |= EPOLLET;
-        break;
-    case 3:
-        listenEvent |= EPOLLET;
-        connEvent |= EPOLLET;
-        break;
-    default:
-        listenEvent |= EPOLLET;
-        connEvent |= EPOLLET;
-        break;
-    }
-    HttpConn::isET = (connEvent & EPOLLET);
-}
 
 void WebServer::Start() {
     int timeMS = -1;  /* epoll wait timeout == -1 无事件将阻塞 */
@@ -101,6 +78,7 @@ void WebServer::Start() {
             }
             else if(events & EPOLLOUT) {
                 // assert(users_.count(fd) > 0);
+                std::cout<<"write"<<std::endl;
                 DealWrite_(&users[fd]);
             } else {
                 LOG_ERROR("Unexpected event");
@@ -124,26 +102,26 @@ void WebServer::CloseConn_(HttpConn* client) {
     assert(client);
     LOG_INFO("Client[%d] quit!", client->GetFd());
     epoller->DelFd(client->GetFd());
-    client->Close();
+    client->Close(ssl_hash[client->GetFd()]);
 }
 
-HttpConn * WebServer::AddClient_(int fd, sockaddr_in addr) {
+void  WebServer::AddClient_(int fd, sockaddr_in addr) {
     assert(fd > 0);
     
     ssl_hash[fd]=ctx->SSL_new();
-    users[fd].init(fd, addr,ssl_hash[fd]);
+    users[fd].init(fd, addr);
    
-    SSL_set_fd(users[fd].ssl, fd);
-    int status=SSL_accept(users[fd].ssl);
+    SSL_set_fd( ssl_hash[fd], fd);
+    SSL_accept( ssl_hash[fd]);
     // std::cout<<"stauts"<<status<<std::endl;
    
     epoller->AddFd(fd, EPOLLIN );
     fcntl(fd,F_SETFL,fcntl(fd,F_GETFL)| O_NONBLOCK);
     LOG_INFO("Client[%d] in!", users[fd].GetFd());
-    return &users[fd];
+    return ;
 }
 
-HttpConn * WebServer::DealListen_() {
+void  WebServer::DealListen_() {
     struct sockaddr_in addr;
     socklen_t len = sizeof(addr);
     
@@ -168,9 +146,9 @@ void WebServer::DealRead_(HttpConn* client) {
 
 void WebServer::DealWrite_(HttpConn* client) {
     assert(client);
-    ExtentTime_(client);
-    OnWrite_(client);
-    // threadpool->AddTask(std::bind(&WebServer::OnWrite_, this, client));
+    // ExtentTime_(client);
+     OnWrite_(client);
+    //  threadpool->AddTask(std::bind(&WebServer::OnWrite_, this, client));
 }
 
 void WebServer::ExtentTime_(HttpConn* client) {
@@ -200,10 +178,11 @@ void WebServer::OnProcess(HttpConn* client) {
 }
 
 void WebServer::OnWrite_(HttpConn* client) {
+    std::cout<<"传输完成"<<std::endl;
     assert(client);
     int ret = -1;
     int writeErrno = 0;
-    ret = client->ssl_write(&writeErrno);
+    ret = client->ssl_write(ssl_hash[client->GetFd()],&writeErrno);
     if(client->ToWriteBytes() == 0) {
         /* 传输完成 */
         if(client->IsKeepAlive()) {
@@ -218,7 +197,7 @@ void WebServer::OnWrite_(HttpConn* client) {
             return;
         }
     }
-    std::cout<<"传输完成"<<std::endl;
+    
     CloseConn_(client);
 }
 
@@ -285,7 +264,7 @@ bool WebServer::InitSocket_() {
         return false;
     }
   
-     fcntl(listenFd,F_SETFL,fcntl(listenFd,F_GETFL)| O_NONBLOCK);
+    fcntl(listenFd,F_SETFL,fcntl(listenFd,F_GETFL)| O_NONBLOCK);//更改文件标识符
     LOG_INFO("Server port:%d", port);
     return true;
 }

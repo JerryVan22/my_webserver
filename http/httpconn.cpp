@@ -17,22 +17,22 @@ HttpConn::HttpConn() {
 };
 
 HttpConn::~HttpConn() { 
-    Close(); 
+    // Close(); 
 };
 
-void HttpConn::init(int fd, const sockaddr_in& addr,SSL * _ssl) {
+void HttpConn::init(int fd, const sockaddr_in& addr) {
     assert(fd > 0);
     userCount++;
     addr_ = addr;
     fd_ = fd;
-    ssl=_ssl;
+    
     writeBuff_.RetrieveAll();
     readBuff_.RetrieveAll();
     isClose_ = false;
     LOG_INFO("Client[%d](%s:%d) in, userCount:%d", fd_, GetIP(), GetPort(), (int)userCount);
 }
 
-void HttpConn::Close() {
+void HttpConn::Close(SSL * ssl) {
     response_.UnmapFile();
     if(isClose_ == false){
         isClose_ = true; 
@@ -80,10 +80,10 @@ ssize_t HttpConn::ssl_read(SSL * hash_ssl,int * saveErrnor){
     return len;
 }
 
-ssize_t HttpConn::ssl_write(int * saveErrno){
+ssize_t HttpConn::ssl_write(SSL *ssl_hash,int * saveErrno){
      ssize_t len = -1;
     do {
-        len = SSL_ctx::SSL_writev(ssl, iov_, iovCnt_);
+        len = SSL_ctx::SSL_writev(ssl_hash, iov_, iovCnt_);
         if(len <= 0) {
             *saveErrno = errno;
             break;
@@ -137,12 +137,12 @@ ssize_t HttpConn::write(int* saveErrno) {
 
 bool HttpConn::process() {
     request_.Init();
-    std::cout<<"request"<<std::endl;
+   
     if(readBuff_.ReadableBytes() <= 0) {
         return false;
     }
     else if(request_.parse(readBuff_)) {
-        LOG_DEBUG("%s", request_.path().c_str());
+        LOG_INFO("%s", request_.path().c_str());
         response_.Init(srcDir, request_.path(), request_.IsKeepAlive(), 200);
     } else {
         response_.Init(srcDir, request_.path(), false, 400);
@@ -160,6 +160,6 @@ bool HttpConn::process() {
         iov_[1].iov_len = response_.FileLen();
         iovCnt_ = 2;
     }
-    LOG_DEBUG("filesize:%d, %d  to %d", response_.FileLen() , iovCnt_, ToWriteBytes());
+    LOG_INFO("filesize:%d, %d  to %d", response_.FileLen() , iovCnt_, ToWriteBytes());
     return true;
 }

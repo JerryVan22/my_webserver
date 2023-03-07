@@ -16,13 +16,13 @@
 #include "Epoll.h"
 #include "../log/log.h"
 
-
+#include "../pool/threadpool.h"
 #include "../http/httpconn.h"
 #include "../ssl/SSL_ctx.h"
 class WebServer {
 public:
     WebServer(
-        int _port, int _trigMode, int _timeoutMS, bool _OptLinger, 
+        int _port,  int _timeoutMS, bool _OptLinger, 
         int _sqlPort, const char* _sqlUser, const  char* _sqlPwd, 
         const char* _dbName, int _connPoolNum, int _threadNum,
         bool _openLog, int _logLevel, int _logQueSize,SSL_ctx * _ctx);
@@ -32,10 +32,9 @@ public:
 
 private:
     bool InitSocket_(); 
-    void InitEventMode_(int trigMode);
-    HttpConn * AddClient_(int fd, sockaddr_in addr);
+    void AddClient_(int fd, sockaddr_in addr);
   
-    HttpConn* DealListen_();
+    void DealListen_();
     void DealWrite_(HttpConn* client);
     void DealRead_(HttpConn* client);
 
@@ -61,7 +60,7 @@ private:
     uint32_t connEvent;
    
    
-   
+   std::unique_ptr<ThreadPool> threadpool;
     std::unique_ptr<Epoller> epoller;
     std::unordered_map<int, HttpConn> users;
     std::unordered_map<int,SSL *> ssl_hash;
