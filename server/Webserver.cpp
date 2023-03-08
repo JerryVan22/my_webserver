@@ -188,26 +188,15 @@ void WebServer::OnRead_(HttpConn *client)
     //     return;
     // }
     // std::future<bool> flag;
-     std::future<bool> flag = threadpool->submit(std::bind(&HttpConn::process, client));
-    if (flag.get() == true)
-    {
-        epoller->ModFd(client->GetFd(), EPOLLOUT);
-    }
-    else
-    {
-        epoller->ModFd(client->GetFd(), connEvent | EPOLLIN);
-    }
-    // if(client->process()) {
-    //     std::cout<<"client epollout"<<std::endl;
-    //     epoller->ModFd(client->GetFd(),  EPOLLOUT);
-    // } else {
-    //     epoller->ModFd(client->GetFd(), connEvent | EPOLLIN);
-    // }
+    //  std::future<bool> flag = threadpool->submit(std::bind(&HttpConn::process, client));
+    OnProcess(client);
+
 }
 
 void WebServer::OnProcess(HttpConn *client)
 {
-    if (client->process())
+    std::future<bool> flag = threadpool->submit(std::bind(&HttpConn::process, client));
+    if (flag.get())
     {
 
         epoller->ModFd(client->GetFd(), connEvent | EPOLLOUT);
