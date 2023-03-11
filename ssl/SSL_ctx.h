@@ -21,7 +21,7 @@ public:
     // SSL_ctx(const char &SSL_ctx) = delete;
     SSL_ctx(std::string _server_pem, std::string _server_key) : server_pem(_server_pem), server_key(_server_key)
     {
-        
+       
         /* SSL 库初始化 */
         SSL_library_init();
         /* 载入所有 SSL 算法 */

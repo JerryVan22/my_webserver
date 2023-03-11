@@ -75,7 +75,6 @@ ssize_t HttpConn::ssl_read(SSL * hash_ssl,int * saveErrnor){
      ssize_t len = -1;
     do {
         len = readBuff_.SSLReadFd(hash_ssl, saveErrnor);
-        std::cout<<"len: "<<len<<std::endl;
         if (len <= 0) {
             break;
         }

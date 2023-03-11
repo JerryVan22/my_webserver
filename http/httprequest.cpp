@@ -29,21 +29,17 @@ bool HttpRequest::IsKeepAlive() const {
 
 bool HttpRequest::parse(Buffer& buff) {
     const char CRLF[] = "\r\n";
-    // cout<<"buff read";
-    //  for(int i=buff.readPos_;i<buff.writePos_;i++){
-    //     std::cout<<buff.buffer_[i];
-    // }
-    // std::cout<<std::endl;
+  
     if(buff.ReadableBytes() <= 0) {
         return false;
     }
-    // cout<<buff.ReadableBytes()<<" buff read"<<std::endl;
+   
     while(buff.ReadableBytes() && state_ != FINISH) {
         const char* lineEnd = search(buff.Peek(), buff.BeginWriteConst(), CRLF, CRLF + 2);
-        // char pe=buff.Peek();
+    
 
         std::string line(buff.Peek(), lineEnd);
-         std::cout<<line<<std::endl;
+       
         switch(state_)
         {
         case REQUEST_LINE:
@@ -86,7 +82,7 @@ void HttpRequest::ParsePath_() {
 }
 
 bool HttpRequest::ParseRequestLine_(const string& line) {
-    std::cout<<line<<"\tempty?";
+   
     regex patten("^([^ ]*) ([^ ]*) HTTP/([^ ]*)$");
     smatch subMatch;
     if(regex_match(line, subMatch, patten)) {   

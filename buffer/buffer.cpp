@@ -29,7 +29,7 @@ const char *Buffer::Peek() const
 
 void Buffer::Retrieve(size_t len)
 {
-    std::cout<<len<<'\t'<<ReadableBytes()<<std::endl;
+    
     assert(len <= ReadableBytes());
     readPos_ += len;
 }
@@ -114,7 +114,7 @@ ssize_t Buffer::SSLReadFd(SSL *ssl,int * saveErrno){
     // iov[0].iov_len = sizeof(buff);
     const ssize_t len=SSL_read(ssl,BeginPtr_() + writePos_,writable);
     // const ssize_t len = SSL_ctx::SSL_readv(ssl,iov,2);
-    // std::cout<<"len: "<<len<<" buff:"<<buff<<std::endl;
+   
     if (len < 0)
     {
         *saveErrno = errno;
@@ -126,7 +126,7 @@ ssize_t Buffer::SSLReadFd(SSL *ssl,int * saveErrno){
     else
     {
         writePos_ = buffer_.size();
-        std::cout<<"write is full";
+       
         // Append(buff, len - writable);
     }
     

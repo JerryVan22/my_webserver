@@ -14,6 +14,9 @@
 #include <arpa/inet.h>
 
 #include "Epoll.h"
+#include "IPAddress.h"
+#include "Socket.h"
+
 #include "../log/log.h"
 
 #include "../pool/threadpool.h"
@@ -22,10 +25,8 @@
 class WebServer {
 public:
     WebServer(
-        int _port,  int _timeoutMS, bool _OptLinger, 
-        int _sqlPort, const char* _sqlUser, const  char* _sqlPwd, 
-        const char* _dbName, int _connPoolNum, int _threadNum,
-        bool _openLog, int _logLevel, int _logQueSize,SSL_ctx * _ctx);
+        int _port,  int _timeoutMS, bool _OptLinger, int _threadNum,
+        bool _openLog, int _logLevel, int _logQueSize,std::string _server_pem, std::string _server_key);
 
     ~WebServer();
     void Start();
@@ -50,10 +51,11 @@ private:
 
 
     int port;
+   
     bool openLinger;
     int timeoutMS;  /* 毫秒MS */
     bool isClose;
-    int listenFd;
+    Socket listenFd;
     char* srcDir;
     
     uint32_t listenEvent;
@@ -64,5 +66,5 @@ private:
     std::unique_ptr<Epoller> epoller;
     std::unordered_map<int, HttpConn> users;
     std::unordered_map<int,SSL *> ssl_hash;
-    SSL_ctx* ctx;
+    SSL_ctx ctx;
 };

@@ -1,14 +1,12 @@
 #include "webserver.h"
 
 WebServer::WebServer(
-    int _port, int _timeoutMS, bool _OptLinger,
-    int _sqlPort, const char *_sqlUser, const char *_sqlPwd,
-    const char *_dbName, int _connPoolNum, int _threadNum,
-    bool _openLog, int _logLevel, int _logQueSize, SSL_ctx *_ctx) : port(_port), openLinger(_OptLinger), timeoutMS(_timeoutMS), isClose(false),
-                                                                    threadpool(new ThreadPool(_threadNum)), epoller(new Epoller())
+    int _port, int _timeoutMS, bool _OptLinger, int _threadNum,
+    bool _openLog, int _logLevel, int _logQueSize, std::string _server_pem, std::string _server_key) : port(_port), openLinger(_OptLinger), timeoutMS(_timeoutMS), isClose(false),
+                                                                    threadpool(new ThreadPool(_threadNum)), epoller(new Epoller()),ctx(_server_pem,_server_key)
 {
 
-    ctx = _ctx;
+
 
     srcDir = getcwd(nullptr, 256);
 
@@ -17,7 +15,6 @@ WebServer::WebServer(
     HttpConn::userCount = 0;
     HttpConn::srcDir = srcDir;
 
-    // SqlConnPool::Instance()->Init("localhost", _sqlPort, _sqlUser, _sqlPwd, _dbName, _connPoolNum);
 
     listenEvent |= EPOLLET;
     connEvent |= EPOLLET;
@@ -42,14 +39,14 @@ WebServer::WebServer(
                      (connEvent & EPOLLET ? "ET" : "LT"));
             LOG_INFO("LogSys level: %d", _logLevel);
             LOG_INFO("srcDir: %s", HttpConn::srcDir);
-            LOG_INFO("SqlConnPool num: %d, ThreadPool num: %d", _connPoolNum, _threadNum);
+            
         }
     }
 }
 
 WebServer::~WebServer()
 {
-    close(listenFd);
+    
     isClose = true;
     free(srcDir);
     // SqlConnPool::Instance()->ClosePool();
@@ -74,23 +71,23 @@ void WebServer::Start()
             /* 处理事件 */
             int fd = epoller->GetEventFd(i);
             uint32_t events = epoller->GetEvents(i);
-            if (fd == listenFd)
+            if (fd == listenFd.getFd())
             {
                 DealListen_();
             }
             else if (events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
             {
-                // assert(users_.count(fd) > 0);
+
                 CloseConn_(&users[fd]);
             }
             else if (events & EPOLLIN)
             {
-                // assert(users_.count(fd) > 0);
+                
                 DealRead_(&users[fd]);
             }
             else if (events & EPOLLOUT)
             {
-                // assert(users_.count(fd) > 0);
+               
 
                 DealWrite_(&users[fd]);
             }
@@ -118,19 +115,21 @@ void WebServer::CloseConn_(HttpConn *client)
     assert(client);
     LOG_INFO("Client[%d] quit!", client->GetFd());
     epoller->DelFd(client->GetFd());
+    int temp=client->GetFd();
     client->Close(ssl_hash[client->GetFd()]);
+    ssl_hash.erase(temp);
 }
 
 void WebServer::AddClient_(int fd, sockaddr_in addr)
 {
     assert(fd > 0);
 
-    ssl_hash[fd] = ctx->SSL_new();
+    ssl_hash[fd] = ctx.SSL_new();
     users[fd].init(fd, addr);
 
     SSL_set_fd(ssl_hash[fd], fd);
     SSL_accept(ssl_hash[fd]);
-    // std::cout<<"stauts"<<status<<std::endl;
+    
 
     epoller->AddFd(fd, EPOLLIN);
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
@@ -143,8 +142,8 @@ void WebServer::DealListen_()
     struct sockaddr_in addr;
     socklen_t len = sizeof(addr);
 
-    // SSL_accept()
-    int fd = accept(listenFd, (struct sockaddr *)&addr, &len);
+   
+    int fd = accept(listenFd.getFd(), (struct sockaddr *)&addr, &len);
 
     if (HttpConn::userCount >= MAX_FD)
     {
@@ -166,7 +165,7 @@ void WebServer::DealWrite_(HttpConn *client)
 {
     assert(client);
     // ExtentTime_(client);
-    // std::cout<<"write"<<std::endl;
+   
     OnWrite_(client);
     //   threadpool->AddTask(std::bind(&WebServer::OnWrite_, this, client));
 }
@@ -182,13 +181,7 @@ void WebServer::OnRead_(HttpConn *client)
     int ret = -1;
     int readErrno = 0;
     ret = client->ssl_read(ssl_hash[client->GetFd()], &readErrno);
-    // std::cout<<"ret:"<<ret<<std::endl;
-    // if(ret <= 0 ) {
-    //     CloseConn_(client);
-    //     return;
-    // }
-    // std::future<bool> flag;
-    //  std::future<bool> flag = threadpool->submit(std::bind(&HttpConn::process, client));
+   
     OnProcess(client);
 
 }
@@ -217,7 +210,7 @@ void WebServer::OnWrite_(HttpConn *client)
     if (client->ToWriteBytes() == 0)
     {
         /* 传输完成 */
-        std::cout << client->GetFd() << "传输完成" << std::endl;
+       
         if (client->IsKeepAlive())
         {
             OnProcess(client);
@@ -241,15 +234,14 @@ void WebServer::OnWrite_(HttpConn *client)
 bool WebServer::InitSocket_()
 {
     int ret;
-    struct sockaddr_in addr;
+    
     if (port > 65535 || port < 1024)
     {
         LOG_ERROR("Port:%d error!", port);
+
         return false;
     }
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(port);
+    
     struct linger optLinger = {0};
     if (openLinger)
     {
@@ -258,58 +250,66 @@ bool WebServer::InitSocket_()
         optLinger.l_linger = 1;
     }
 
-    listenFd = socket(AF_INET, SOCK_STREAM, 0);
-    if (listenFd < 0)
+    
+    
+    if (listenFd.getFd() < 0)
     {
         LOG_ERROR("Create socket error!", port);
+        std::cout<<"1";
         return false;
     }
 
-    ret = setsockopt(listenFd, SOL_SOCKET, SO_LINGER, &optLinger, sizeof(optLinger));
+    ret = listenFd.setsockopt( SOL_SOCKET, SO_LINGER, &optLinger, static_cast<socklen_t>(sizeof(optLinger)));
     if (ret < 0)
     {
-        close(listenFd);
+        listenFd.close();
         LOG_ERROR("Init linger error!", port);
+         std::cout<<"2";
         return false;
     }
 
     int optval = 1;
     /* 端口复用 */
     /* 只有最后一个套接字会正常接收数据。 */
-    ret = setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR, (const void *)&optval, sizeof(int));
+    ret = listenFd.setsockopt( SOL_SOCKET, SO_REUSEADDR, ( void  *)&optval, static_cast<socklen_t>(sizeof(int)));
     if (ret == -1)
     {
         LOG_ERROR("set socket setsockopt error !");
-        close(listenFd);
+        listenFd.close();
+         
         return false;
     }
-
-    ret = bind(listenFd, (struct sockaddr *)&addr, sizeof(addr));
+    IPAddress addr(port);
+    ret = listenFd.bind(&addr);
+    
     if (ret < 0)
     {
         LOG_ERROR("Bind Port:%d error!", port);
-        close(listenFd);
+        listenFd.close();
+        
         return false;
     }
 
-    ret = listen(listenFd, 6);
+    ret = listenFd.listen();
     if (ret < 0)
     {
         LOG_ERROR("Listen port:%d error!", port);
-        close(listenFd);
+        listenFd.close();
+         
         return false;
     }
 
-    ret = epoller->AddFd(listenFd, listenEvent | EPOLLIN);
+    ret = epoller->AddFd(listenFd.getFd(), listenEvent | EPOLLIN);
 
     if (ret == 0)
     {
         LOG_ERROR("Add listen error!");
-        close(listenFd);
+        listenFd.close();
+         std::cout<<"6";
         return false;
     }
 
-    fcntl(listenFd, F_SETFL, fcntl(listenFd, F_GETFL) | O_NONBLOCK); // 更改文件标识符
+    listenFd.setnonblocking();
     LOG_INFO("Server port:%d", port);
     return true;
 }
