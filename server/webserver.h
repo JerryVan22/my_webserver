@@ -22,6 +22,7 @@
 #include "../pool/threadpool.h"
 #include "../http/httpconn.h"
 #include "../ssl/SSL_ctx.h"
+#include "../timer/heaptimer.h"
 class WebServer {
 public:
     WebServer(
@@ -66,5 +67,6 @@ private:
     std::unique_ptr<Epoller> epoller;
     std::unordered_map<int, HttpConn> users;
     std::unordered_map<int,SSL *> ssl_hash;
+     std::unique_ptr<HeapTimer> timer;
     SSL_ctx ctx;
 };

@@ -87,7 +87,7 @@ ssize_t HttpConn::ssl_write(SSL *ssl_hash,int * saveErrno){
     do {
         len = SSL_ctx::SSL_writev(ssl_hash, iov_, iovCnt_);
         if(len <= 0) {
-            *saveErrno = errno;
+            *saveErrno = EAGAIN;
             break;
         }
         if(iov_[0].iov_len + iov_[1].iov_len  == 0) { break; } /* 传输结束 */
