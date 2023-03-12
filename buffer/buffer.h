@@ -19,7 +19,7 @@
 class Buffer
 {
 public:
-    Buffer(int initBuffSize = 655535);
+    Buffer(int initBuffSize = 1024);
     ~Buffer() = default;
 
     size_t WritableBytes() const;

@@ -6,6 +6,7 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <string>
+#include <memory>
  #include <sys/uio.h>  
 #include <algorithm>
 #include<iostream>
@@ -97,7 +98,7 @@ public:
 
     static ssize_t SSL_writev(SSL *ssl, const  iovec *io_vector, int count)
     {
-        char *buffer;
+        
         char *bp;
         size_t bytes, to_copy;
 
@@ -107,11 +108,12 @@ public:
             bytes += io_vector[i].iov_len;
 
         /* Allocate a temporary buffer to hold the data.  */
-        buffer = (char *)alloca(bytes);
+        std::unique_ptr<char> buffer(new char[bytes]);
 
         /* Copy the data into BUFFER.  */
         to_copy = bytes;
-        bp = buffer;
+        bp = buffer.get();
+        // std::cout<<bytes<<std::endl;
         for (int i = 0; i < count; ++i)
         {
 
@@ -125,7 +127,7 @@ public:
                 break;
         }
 
-        return SSL_write(ssl, buffer, bytes);
+        return SSL_write(ssl, buffer.get(), bytes);
     }
 
     static void close_ssl(SSL *ssl, int client_fd)

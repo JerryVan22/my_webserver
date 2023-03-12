@@ -104,30 +104,24 @@ void Buffer::EnsureWriteable(size_t len)
 
 
 ssize_t Buffer::SSLReadFd(SSL *ssl,int * saveErrno){
-    // char buff[65535];
+    char buff[65535];
     // struct iovec iov[2];
-    const size_t writable = WritableBytes();
+    // const size_t writable = WritableBytes();
     /* 分散读， 保证数据全部读完 */
     // iov[1].iov_base = BeginPtr_() + writePos_;
     // iov[1].iov_len = writable;
     // iov[0].iov_base = buff;
     // iov[0].iov_len = sizeof(buff);
-    const ssize_t len=SSL_read(ssl,BeginPtr_() + writePos_,writable);
+    const ssize_t len=SSL_read(ssl,buff,sizeof(buff));
     // const ssize_t len = SSL_ctx::SSL_readv(ssl,iov,2);
    
     if (len < 0)
     {
         *saveErrno = errno;
     }
-    else if (static_cast<size_t>(len) <= writable)
-    {
-        writePos_ += len;
-    }
     else
     {
-        writePos_ = buffer_.size();
-       
-        // Append(buff, len - writable);
+        Append(buff,len);
     }
     
     return len;

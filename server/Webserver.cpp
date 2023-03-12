@@ -15,8 +15,8 @@ WebServer::WebServer(
 
     listenEvent = EPOLLRDHUP;
     connEvent = EPOLLONESHOT | EPOLLRDHUP;
-    // listenEvent |= EPOLLET;
-    // connEvent |= EPOLLET;
+     listenEvent |= EPOLLET;
+     connEvent |= EPOLLET;
     HttpConn::isET = (connEvent & EPOLLET);
     if (!InitSocket_())
     {
@@ -62,7 +62,7 @@ void WebServer::Start()
 
     while (!isClose)
     {
-        if (!timeoutMS > 0)
+        if (timeoutMS > 0)
         {
             timeMS = timer->GetNextTick();
         }
@@ -212,7 +212,7 @@ void WebServer::OnWrite_(HttpConn *client)
     assert(client);
     int ret = 0;
     int writeErrno = 0;
-    client->ssl_write(ssl_hash[client->GetFd()], &writeErrno);
+    ret=client->ssl_write(ssl_hash[client->GetFd()], &writeErrno);
     if (client->ToWriteBytes() == 0)
     {
         /* 传输完成 */
@@ -225,6 +225,7 @@ void WebServer::OnWrite_(HttpConn *client)
     }
     else if (ret < 0)
     {
+        // std::cout<<"ssl get error"<<SSL_get_error(ssl_hash[client->GetFd()], writeErrno)<<std::endl;
         if (SSL_get_error(ssl_hash[client->GetFd()], writeErrno) == SSL_ERROR_WANT_WRITE)
         {
             /* 继续传输 */
